@@ -113,8 +113,6 @@ class FailedJobsController extends Controller
      */
     protected function decode($job)
     {
-        $job->payload = json_decode($job->payload);
-
         $job->exception = mb_convert_encoding($job->exception, 'UTF-8');
 
         $job->context = json_decode($job->context ?? '');

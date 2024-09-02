@@ -5,6 +5,7 @@ namespace Laravel\Horizon\Repositories;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Redis\Factory as RedisFactory;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 use Illuminate\Support\Collection;
 use Laravel\Horizon\Contracts\JobRepository;
 use Laravel\Horizon\JobPayload;
@@ -147,8 +148,12 @@ class RedisJobRepository implements JobRepository
      * @param  string|null  $afterIndex
      * @return \Illuminate\Support\Collection
      */
-    public function getPending($afterIndex = null)
+    public function getPending($afterIndex = null, $search = null)
     {
+        if (!is_null($search)) {
+            return $this->getJobsByTypeAndSearch('pending_jobs', $afterIndex, $search);
+        }
+
         return $this->getJobsByType('pending_jobs', $afterIndex);
     }
 
@@ -158,8 +163,12 @@ class RedisJobRepository implements JobRepository
      * @param  string|null  $afterIndex
      * @return \Illuminate\Support\Collection
      */
-    public function getCompleted($afterIndex = null)
+    public function getCompleted($afterIndex = null, $search = null)
     {
+        if (!is_null($search)) {
+            return $this->getJobsByTypeAndSearch('completed_jobs', $afterIndex, $search);
+        }
+
         return $this->getJobsByType('completed_jobs', $afterIndex);
     }
 
@@ -239,15 +248,54 @@ class RedisJobRepository implements JobRepository
      *
      * @param  string  $type
      * @param  string  $afterIndex
+     * @param  null|int  $lastIndex
      * @return \Illuminate\Support\Collection
      */
-    protected function getJobsByType($type, $afterIndex)
+    protected function getJobsByType($type, $afterIndex, $lastIndex = null)
     {
         $afterIndex = $afterIndex === null ? -1 : $afterIndex;
 
+        $lastIndex = $lastIndex ?? $afterIndex + 50;
+
         return $this->getJobs($this->connection()->zrange(
-            $type, $afterIndex + 1, $afterIndex + 50
-        ), $afterIndex + 1);
+            $type, $afterIndex + 1, $lastIndex
+        ), $afterIndex + 1)->map(function ($job) {
+            $job->payload = json_decode($job->payload);
+
+            return $job;
+        });
+    }
+
+    /**
+     * Get a chunk of jobs from the given type set, and search
+     *
+     * @param  string  $type
+     * @param  string  $afterIndex
+     * @param  string  $search
+     * @return \Illuminate\Support\Collection
+     */
+    protected function getJobsByTypeAndSearch($type, $afterIndex, $search)
+    {
+        $nullTries = 0;
+        $results = [];
+
+        while ($nullTries < 20 && count($results) <= 50) {
+            $searchResult = $this->getJobsByType($type, $afterIndex, $afterIndex + 100)->filter(function ($job) use ($search) {
+                return Str::contains($job->payload->displayName, $search) || Str::contains($job->queue, $search);
+            });
+
+            if ($searchResult->count() == 0) {
+                $nullTries++;
+            }
+
+            $searchResult->each(function ($job) use(&$results) {
+                $results[] = $job;
+            });
+
+            $afterIndex = $searchResult->sortByDesc('index')->first()->index ?? $afterIndex += 100;
+        }
+
+        return collect($results);
     }
 
     /**

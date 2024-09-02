@@ -1,5 +1,6 @@
 <script type="text/ecmascript-6">
     import JobRow from './job-row.vue';
+    import { Modal } from 'bootstrap';
 
     export default {
         /**
@@ -13,7 +14,8 @@
                 page: 1,
                 perPage: 50,
                 totalPages: 1,
-                jobs: []
+                jobs: [],
+                searchQuery: '',
             };
         },
 
@@ -66,7 +68,12 @@
                     this.ready = false;
                 }
 
-                this.$http.get(Horizon.basePath + '/api/jobs/' + this.$route.params.type + '?starting_at=' + starting + '&limit=' + this.perPage)
+                let path = Horizon.basePath + '/api/jobs/' + this.$route.params.type + '?starting_at=' + starting + '&limit=' + this.perPage;
+                if (this.searchQuery) {
+                    path += '&search=' + this.searchQuery;
+                }
+
+                this.$http.get(path)
                     .then(response => {
                         if (!this.$root.autoLoadsNewEntries && refreshing && this.jobs.length && response.data.jobs[0]?.id !== this.jobs[0]?.id) {
                             this.hasNewEntries = true;
@@ -142,7 +149,43 @@
                                 ? 'Horizon - Silenced Jobs'
                                 : 'Horizon - Completed Jobs'
                         );
-            }
+            },
+
+            /**
+             * Open the modal for search.
+             */
+            openSearchModal() {
+                this.searchModal = Modal.getOrCreateInstance(document.getElementById('searchModel'), {
+                    backdrop: 'static',
+                });
+                this.searchModal.show();
+
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput) {
+                    searchInput.focus();
+                }
+            },
+
+            cancelSearch() {
+                if (this.searchModal) {
+                    this.searchModal.hide();
+                    this.searchModal.dispose();
+                    this.searchModal = null;
+                }
+
+                this.searchQuery = '';
+            },
+
+
+            doSearch() {
+                if (!this.searchQuery) {
+                    return;
+                }
+
+                this.searchModal.hide();
+
+                this.loadJobs();
+            },
         }
     }
 </script>
@@ -154,6 +197,9 @@
                 <h2 class="h6 m-0" v-if="$route.params.type == 'pending'">Pending Jobs</h2>
                 <h2 class="h6 m-0" v-if="$route.params.type == 'completed'">Completed Jobs</h2>
                 <h2 class="h6 m-0" v-if="$route.params.type == 'silenced'">Silenced Jobs</h2>
+
+                <button v-if="searchQuery" @click="openSearchModal" class="btn btn-primary btn-sm">Search - {{ searchQuery }}</button>
+                <button v-else @click="openSearchModal" class="btn btn-primary btn-sm">Search</button>
             </div>
 
             <div v-if="!ready"
@@ -199,6 +245,31 @@
             <div v-if="ready && jobs.length" class="p-3 d-flex justify-content-between border-top">
                 <button @click="previous" class="btn btn-secondary btn-sm" :disabled="page==1">Previous</button>
                 <button @click="next" class="btn btn-secondary btn-sm" :disabled="page>=totalPages">Next</button>
+            </div>
+        </div>
+
+        <div class="modal" id="searchModel" tabindex="-1" role="dialog" aria-labelledby="alertModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">Search</div>
+
+                    <div class="modal-body">
+                        <input type="text" class="form-control" placeholder="App\Jobs\CreateUser"
+                               v-model="searchQuery"
+                               id="searchInput">
+                    </div>
+
+
+                    <div class="modal-footer justify-content-start flex-row-reverse">
+                        <button class="btn btn-primary" @click="doSearch">
+                            Search
+                        </button>
+
+                        <button class="btn" @click="cancelSearch">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

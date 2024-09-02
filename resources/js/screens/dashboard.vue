@@ -286,8 +286,8 @@
                             </td>
                             <td class="text-end text-muted" :class="{ 'fw-bold': queue.split_queues }">{{ queue.length ? queue.length.toLocaleString() : 0 }}</td>
                             <td class="text-end text-muted" :class="{ 'fw-bold': queue.split_queues }">{{ queue.processes ? queue.processes.toLocaleString() : 0 }}</td>
-                            <td class="text-end text-muted" :class="{ 'fw-bold': queue.split_queues }">{{ humanTime(queue.wait) }}</td>
-                        </tr>
+                            <td v-if="humanTime(queue.wait).includes('A few')" class="text-end text-muted" :class="{ 'fw-bold': queue.split_queues }">{{ queue.wait }} seconds</td>
+                            <td v-else class="text-end text-muted" :class="{ 'fw-bold': queue.split_queues }">{{ humanTime(queue.wait) }}</td>
 
                         <tr v-for="split_queue in queue.split_queues">
                             <td>
@@ -299,7 +299,8 @@
                             </td>
                             <td class="text-end text-muted">{{ split_queue.length ? split_queue.length.toLocaleString() : 0 }}</td>
                             <td class="text-end text-muted">-</td>
-                            <td class="text-end text-muted">{{ humanTime(split_queue.wait) }}</td>
+                            <td v-if="humanTime(split_queue.wait).includes('A few')" class="text-end text-muted">{{ split_queue.wait }} seconds</td>
+                            <td v-else class="text-end text-muted">{{ humanTime(split_queue.wait) }}</td>
                         </tr>
                     </template>
                 </tbody>

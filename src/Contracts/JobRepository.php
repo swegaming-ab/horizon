@@ -48,17 +48,19 @@ interface JobRepository
      * Get a chunk of pending jobs.
      *
      * @param  string  $afterIndex
+     * @param  string  $search
      * @return \Illuminate\Support\Collection
      */
-    public function getPending($afterIndex = null);
+    public function getPending($afterIndex = null, $search = null);
 
     /**
      * Get a chunk of completed jobs.
      *
      * @param  string  $afterIndex
+     * @param  string  $search
      * @return \Illuminate\Support\Collection
      */
-    public function getCompleted($afterIndex = null);
+    public function getCompleted($afterIndex = null, $search = null);
 
     /**
      * Get a chunk of silenced jobs.
